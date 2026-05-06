@@ -1,5 +1,6 @@
 import { ExternalLink, Wand2 } from 'lucide-react';
 import type { Platform } from '../data/types';
+import { Badge } from './Badge';
 
 interface PlatformCardProps {
   platform: Platform;
@@ -68,12 +69,7 @@ export function PlatformCard({ platform, onGenerate }: PlatformCardProps) {
         {/* Tags */}
         <div className="flex flex-wrap gap-1.5">
           {platform.tags.slice(0, 4).map((tag) => (
-            <span
-              key={tag}
-              className="text-xs px-2 py-0.5 rounded-full bg-white/5 border border-white/10 text-slate-400"
-            >
-              {tag}
-            </span>
+            <Badge key={tag}>{tag}</Badge>
           ))}
         </div>
       </div>

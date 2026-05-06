@@ -96,6 +96,7 @@ function App() {
         {filtered.length === 0 && (
           <EmptyState
             query={query}
+            category={selectedCategory}
             onClear={() => {
               setQuery('');
               setSelectedCategory('All');

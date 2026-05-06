@@ -1,5 +1,5 @@
-import { useState, useEffect, useCallback } from 'react';
-import { X, Wand2, ExternalLink, RefreshCw, ChevronDown } from 'lucide-react';
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { X, Wand2, ExternalLink, RefreshCw, ChevronDown, FileText, Sparkles } from 'lucide-react';
 import type { Platform, GeneratedPrompt } from '../data/types';
 import { getTemplateForPlatform } from '../data/promptTemplates';
 import { CopyButton } from './CopyButton';
@@ -23,6 +23,16 @@ const CATEGORY_ICONS: Record<string, string> = {
   'Form Builders': '📋',
 };
 
+// All focusable element selectors for focus trapping
+const FOCUSABLE = [
+  'a[href]',
+  'button:not([disabled])',
+  'input:not([disabled])',
+  'select:not([disabled])',
+  'textarea:not([disabled])',
+  '[tabindex]:not([tabindex="-1"])',
+].join(', ');
+
 export function PromptGenerator({ platform, onClose }: PromptGeneratorProps) {
   const template = getTemplateForPlatform(platform);
   const [values, setValues] = useState<Record<string, string>>({});
@@ -30,15 +40,17 @@ export function PromptGenerator({ platform, onClose }: PromptGeneratorProps) {
   const [history, setHistory] = useState<GeneratedPrompt[]>([]);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [showHistory, setShowHistory] = useState(false);
+  // Mobile tab state: 'form' | 'output'
+  const [mobileTab, setMobileTab] = useState<'form' | 'output'>('form');
 
-  // Close on Escape
+  const modalRef = useRef<HTMLDivElement>(null);
+  const closeButtonRef = useRef<HTMLButtonElement>(null);
+  const outputRef = useRef<HTMLDivElement>(null);
+
+  // Focus the close button when the modal mounts
   useEffect(() => {
-    const handler = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
-    };
-    document.addEventListener('keydown', handler);
-    return () => document.removeEventListener('keydown', handler);
-  }, [onClose]);
+    closeButtonRef.current?.focus();
+  }, []);
 
   // Lock body scroll while modal is open
   useEffect(() => {
@@ -47,6 +59,42 @@ export function PromptGenerator({ platform, onClose }: PromptGeneratorProps) {
       document.body.style.overflow = '';
     };
   }, []);
+
+  // Close on Escape, trap focus within modal
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        onClose();
+        return;
+      }
+
+      if (e.key !== 'Tab') return;
+
+      const modal = modalRef.current;
+      if (!modal) return;
+
+      const focusable = Array.from(modal.querySelectorAll<HTMLElement>(FOCUSABLE));
+      if (focusable.length === 0) return;
+
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+
+      if (e.shiftKey) {
+        if (document.activeElement === first) {
+          e.preventDefault();
+          last.focus();
+        }
+      } else {
+        if (document.activeElement === last) {
+          e.preventDefault();
+          first.focus();
+        }
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [onClose]);
 
   const validate = useCallback(() => {
     const newErrors: Record<string, string> = {};
@@ -72,12 +120,19 @@ export function PromptGenerator({ platform, onClose }: PromptGeneratorProps) {
     };
     setGenerated(newPrompt);
     setHistory((prev) => [newPrompt, ...prev.slice(0, 4)]);
+    // On mobile: switch to the output tab automatically
+    setMobileTab('output');
+    // Scroll output into view after state update
+    requestAnimationFrame(() => {
+      outputRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
+    });
   };
 
   const handleReset = () => {
     setValues({});
     setGenerated(null);
     setErrors({});
+    setMobileTab('form');
   };
 
   const handleFieldChange = (id: string, value: string) => {
@@ -92,34 +147,36 @@ export function PromptGenerator({ platform, onClose }: PromptGeneratorProps) {
   };
 
   return (
-    /* Backdrop */
     <div
       className="fixed inset-0 z-50 flex items-center justify-center p-4"
       role="dialog"
       aria-modal="true"
       aria-label={`Generate prompt for ${platform.name}`}
     >
-      {/* Overlay */}
+      {/* Backdrop */}
       <div
         className="absolute inset-0 bg-black/70 backdrop-blur-sm"
         onClick={onClose}
         aria-hidden="true"
       />
 
-      {/* Modal */}
-      <div className="relative w-full max-w-5xl max-h-[90vh] flex flex-col rounded-2xl bg-[#16171d] border border-white/10 shadow-2xl overflow-hidden">
-        {/* Header */}
+      {/* Modal panel */}
+      <div
+        ref={modalRef}
+        className="relative w-full max-w-5xl max-h-[90vh] flex flex-col rounded-2xl bg-[#16171d] border border-white/10 shadow-2xl overflow-hidden"
+      >
+        {/* ── Header ── */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-white/10 flex-shrink-0">
           <div className="flex items-center gap-3">
             <div
-              className="w-9 h-9 rounded-xl flex items-center justify-center text-sm font-bold"
+              className="w-9 h-9 rounded-xl flex items-center justify-center text-sm font-bold flex-shrink-0"
               style={{ background: platform.color, color: platform.textColor }}
               aria-hidden="true"
             >
               {platform.name.charAt(0)}
             </div>
             <div>
-              <h2 className="text-white font-semibold text-sm">{platform.name}</h2>
+              <h2 className="text-white font-semibold text-sm leading-tight">{platform.name}</h2>
               <p className="text-slate-500 text-xs">
                 {CATEGORY_ICONS[platform.category]} {platform.category}
               </p>
@@ -130,12 +187,13 @@ export function PromptGenerator({ platform, onClose }: PromptGeneratorProps) {
               href={platform.url}
               target="_blank"
               rel="noopener noreferrer"
-              className="flex items-center gap-1.5 text-xs text-slate-400 hover:text-white border border-white/10 rounded-lg px-3 py-1.5 transition-colors"
+              className="hidden sm:flex items-center gap-1.5 text-xs text-slate-400 hover:text-white border border-white/10 rounded-lg px-3 py-1.5 transition-colors"
             >
               <ExternalLink size={12} />
               Open {platform.name}
             </a>
             <button
+              ref={closeButtonRef}
               onClick={onClose}
               className="text-slate-500 hover:text-white transition-colors p-1.5 rounded-lg hover:bg-white/10"
               aria-label="Close modal"
@@ -145,10 +203,46 @@ export function PromptGenerator({ platform, onClose }: PromptGeneratorProps) {
           </div>
         </div>
 
-        {/* Body — two-column on large screens */}
+        {/* ── Mobile tab bar (hidden on lg+) ── */}
+        <div className="flex lg:hidden border-b border-white/10 flex-shrink-0">
+          <button
+            onClick={() => setMobileTab('form')}
+            className={`flex-1 flex items-center justify-center gap-2 py-3 text-sm font-medium transition-colors ${
+              mobileTab === 'form'
+                ? 'text-white border-b-2 border-purple-500'
+                : 'text-slate-500 hover:text-slate-300'
+            }`}
+            aria-selected={mobileTab === 'form'}
+          >
+            <FileText size={14} />
+            Configure
+          </button>
+          <button
+            onClick={() => setMobileTab('output')}
+            className={`flex-1 flex items-center justify-center gap-2 py-3 text-sm font-medium transition-colors ${
+              mobileTab === 'output'
+                ? 'text-white border-b-2 border-purple-500'
+                : 'text-slate-500 hover:text-slate-300'
+            }`}
+            aria-selected={mobileTab === 'output'}
+          >
+            <Sparkles size={14} />
+            Output
+            {generated && (
+              <span className="w-2 h-2 rounded-full bg-green-400" aria-label="Output ready" />
+            )}
+          </button>
+        </div>
+
+        {/* ── Body ── */}
         <div className="flex flex-col lg:flex-row flex-1 overflow-hidden min-h-0">
-          {/* Left: Form */}
-          <div className="flex-1 overflow-y-auto p-6 border-b lg:border-b-0 lg:border-r border-white/10">
+
+          {/* ── Left: Form panel ── */}
+          <div
+            className={`flex-1 overflow-y-auto p-6 lg:border-r border-white/10 ${
+              mobileTab === 'form' ? 'flex flex-col' : 'hidden lg:flex lg:flex-col'
+            }`}
+          >
             <div className="flex items-center justify-between mb-5">
               <h3 className="text-white font-semibold text-sm">Project Details</h3>
               <button
@@ -165,7 +259,7 @@ export function PromptGenerator({ platform, onClose }: PromptGeneratorProps) {
                 e.preventDefault();
                 handleGenerate();
               }}
-              className="space-y-4"
+              className="space-y-4 flex-1"
               noValidate
             >
               {template.fields.map((field) => (
@@ -192,13 +286,9 @@ export function PromptGenerator({ platform, onClose }: PromptGeneratorProps) {
                         aria-invalid={!!errors[field.id]}
                         aria-describedby={errors[field.id] ? `${field.id}-error` : undefined}
                       >
-                        <option value="" className="bg-[#16171d]">
-                          Select an option…
-                        </option>
+                        <option value="" className="bg-[#16171d]">Select an option…</option>
                         {field.options?.map((opt) => (
-                          <option key={opt} value={opt} className="bg-[#16171d]">
-                            {opt}
-                          </option>
+                          <option key={opt} value={opt} className="bg-[#16171d]">{opt}</option>
                         ))}
                       </select>
                       <ChevronDown
@@ -248,7 +338,7 @@ export function PromptGenerator({ platform, onClose }: PromptGeneratorProps) {
 
               <button
                 type="submit"
-                className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-semibold text-sm transition-colors shadow-lg shadow-purple-500/20 mt-2"
+                className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-purple-600 hover:bg-purple-500 active:bg-purple-700 text-white font-semibold text-sm transition-colors shadow-lg shadow-purple-500/20 mt-2"
               >
                 <Wand2 size={16} />
                 Generate Prompt
@@ -256,10 +346,17 @@ export function PromptGenerator({ platform, onClose }: PromptGeneratorProps) {
             </form>
           </div>
 
-          {/* Right: Output */}
-          <div className="flex-1 flex flex-col overflow-hidden">
+          {/* ── Right: Output panel ── */}
+          <div
+            className={`flex-1 flex flex-col overflow-hidden ${
+              mobileTab === 'output' ? 'flex' : 'hidden lg:flex'
+            }`}
+            aria-live="polite"
+            aria-label="Generated prompt output"
+          >
             {generated ? (
               <>
+                {/* Output header */}
                 <div className="flex items-center justify-between px-6 py-4 border-b border-white/10 flex-shrink-0">
                   <h3 className="text-white font-semibold text-sm">Generated Prompt</h3>
                   <div className="flex items-center gap-2">
@@ -267,6 +364,7 @@ export function PromptGenerator({ platform, onClose }: PromptGeneratorProps) {
                       <button
                         onClick={() => setShowHistory((v) => !v)}
                         className="flex items-center gap-1 text-xs text-slate-400 hover:text-white border border-white/10 rounded-lg px-2.5 py-1.5 transition-colors"
+                        aria-expanded={showHistory}
                       >
                         History ({history.length})
                         <ChevronDown
@@ -281,7 +379,7 @@ export function PromptGenerator({ platform, onClose }: PromptGeneratorProps) {
 
                 {/* History dropdown */}
                 {showHistory && history.length > 1 && (
-                  <div className="px-6 py-3 border-b border-white/10 bg-white/3 flex-shrink-0">
+                  <div className="px-6 py-3 border-b border-white/10 bg-white/[0.03] flex-shrink-0">
                     <p className="text-xs text-slate-500 mb-2">Previous prompts</p>
                     <div className="space-y-1">
                       {history.slice(1).map((h) => (
@@ -293,9 +391,13 @@ export function PromptGenerator({ platform, onClose }: PromptGeneratorProps) {
                           }}
                           className="w-full text-left text-xs text-slate-400 hover:text-white px-3 py-2 rounded-lg hover:bg-white/10 transition-colors truncate"
                         >
-                          {h.content.split('\n')[0].replace(/^#+\s*/, '')} —{' '}
+                          {h.content.split('\n')[0].replace(/^#+\s*/, '')}
+                          {' — '}
                           <span className="text-slate-600">
-                            {h.createdAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                            {h.createdAt.toLocaleTimeString([], {
+                              hour: '2-digit',
+                              minute: '2-digit',
+                            })}
                           </span>
                         </button>
                       ))}
@@ -303,22 +405,34 @@ export function PromptGenerator({ platform, onClose }: PromptGeneratorProps) {
                   </div>
                 )}
 
-                <div className="flex-1 overflow-y-auto p-6">
-                  <pre className="text-slate-300 text-xs leading-relaxed whitespace-pre-wrap font-mono bg-white/3 rounded-xl p-4 border border-white/10">
+                {/* Prompt text */}
+                <div ref={outputRef} className="flex-1 overflow-y-auto p-6">
+                  <pre className="text-slate-300 text-xs leading-relaxed whitespace-pre-wrap font-mono bg-white/[0.03] rounded-xl p-4 border border-white/10">
                     {generated.content}
                   </pre>
                 </div>
               </>
             ) : (
+              /* Empty output state */
               <div className="flex-1 flex flex-col items-center justify-center text-center px-8 py-12">
                 <div className="w-14 h-14 rounded-2xl bg-purple-500/10 border border-purple-500/20 flex items-center justify-center mb-4">
                   <Wand2 size={24} className="text-purple-400" />
                 </div>
                 <h3 className="text-white font-semibold mb-2">Your prompt will appear here</h3>
                 <p className="text-slate-500 text-sm max-w-xs">
-                  Fill in the project details on the left and click{' '}
-                  <strong className="text-slate-300">Generate Prompt</strong> to create a
-                  platform-optimised prompt.
+                  Fill in the project details
+                  <span className="lg:hidden">
+                    {' '}on the{' '}
+                    <button
+                      onClick={() => setMobileTab('form')}
+                      className="text-purple-400 underline underline-offset-2"
+                    >
+                      Configure tab
+                    </button>
+                  </span>
+                  <span className="hidden lg:inline"> on the left</span>
+                  {' '}and click{' '}
+                  <strong className="text-slate-300">Generate Prompt</strong>.
                 </p>
               </div>
             )}
