@@ -53,8 +53,8 @@ function App() {
 
   return (
     <div className="min-h-screen bg-[#0f0f13]">
-      {/* Decorative background blobs */}
-      <div className="fixed inset-0 pointer-events-none overflow-hidden" aria-hidden="true">
+      {/* Decorative background blobs — kept behind all content */}
+      <div className="fixed inset-0 -z-10 pointer-events-none overflow-hidden" aria-hidden="true">
         <div className="absolute -top-40 -left-40 w-96 h-96 bg-purple-600/10 rounded-full blur-3xl" />
         <div className="absolute top-1/2 -right-40 w-80 h-80 bg-pink-600/8 rounded-full blur-3xl" />
         <div className="absolute bottom-20 left-1/3 w-72 h-72 bg-blue-600/6 rounded-full blur-3xl" />
