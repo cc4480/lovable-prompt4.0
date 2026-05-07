@@ -1,6 +1,8 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect, useCallback } from 'react';
 import type { Category, Platform } from './data/types';
 import { platforms } from './data/platforms';
+import { useLocalStorage } from './hooks/useLocalStorage';
+import { ToastProvider } from './components/Toast';
 import { Header } from './components/Header';
 import { SearchBar } from './components/SearchBar';
 import { CategoryFilter } from './components/CategoryFilter';
@@ -8,15 +10,28 @@ import { PlatformCard } from './components/PlatformCard';
 import { PromptGenerator } from './components/PromptGenerator';
 import { EmptyState } from './components/EmptyState';
 
-function App() {
+function AppContent() {
   const [query, setQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<Category | 'All'>('All');
   const [activePlatform, setActivePlatform] = useState<Platform | null>(null);
+  const [showFavorites, setShowFavorites] = useState(false);
+  const [favorites, setFavorites] = useLocalStorage<string[]>('nc_favorites', []);
+
+  const toggleFavorite = useCallback(
+    (id: string) => {
+      setFavorites((prev) =>
+        prev.includes(id) ? prev.filter((f) => f !== id) : [...prev, id],
+      );
+    },
+    [setFavorites],
+  );
 
   const filtered = useMemo(() => {
     let result = platforms;
 
-    if (selectedCategory !== 'All') {
+    if (showFavorites) {
+      result = result.filter((p) => favorites.includes(p.id));
+    } else if (selectedCategory !== 'All') {
       result = result.filter((p) => p.category === selectedCategory);
     }
 
@@ -27,16 +42,16 @@ function App() {
           p.name.toLowerCase().includes(q) ||
           p.description.toLowerCase().includes(q) ||
           p.tags.some((t) => t.toLowerCase().includes(q)) ||
-          p.category.toLowerCase().includes(q)
+          p.category.toLowerCase().includes(q),
       );
     }
 
     return result;
-  }, [query, selectedCategory]);
+  }, [query, selectedCategory, showFavorites, favorites]);
 
-  // Group by category only when browsing all without a search query
+  // Group by category only in the default "All" view with no search query
   const grouped = useMemo(() => {
-    if (selectedCategory !== 'All' || query.trim()) return null;
+    if (showFavorites || selectedCategory !== 'All' || query.trim()) return null;
     const map = new Map<string, Platform[]>();
     for (const p of filtered) {
       const group = map.get(p.category) ?? [];
@@ -44,16 +59,55 @@ function App() {
       map.set(p.category, group);
     }
     return map;
-  }, [filtered, selectedCategory, query]);
+  }, [filtered, selectedCategory, query, showFavorites]);
 
   const handleCategoryChange = (cat: Category | 'All') => {
     setSelectedCategory(cat);
     setQuery('');
   };
 
+  // Global keyboard shortcuts
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Ignore when typing inside inputs/textareas
+      const tag = (e.target as HTMLElement).tagName;
+      const isEditable = tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT';
+
+      // ⌘K / Ctrl+K: focus search
+      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+        e.preventDefault();
+        (document.getElementById('platform-search') as HTMLInputElement | null)?.focus();
+        return;
+      }
+
+      // Escape: clear search (when no modal is open)
+      if (e.key === 'Escape' && !activePlatform && query) {
+        setQuery('');
+        return;
+      }
+
+      // / : focus search (when not already in an input)
+      if (e.key === '/' && !isEditable && !activePlatform) {
+        e.preventDefault();
+        (document.getElementById('platform-search') as HTMLInputElement | null)?.focus();
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [activePlatform, query]);
+
+  const isEmpty = filtered.length === 0;
+  const isFiltering = query || selectedCategory !== 'All' || showFavorites;
+
   return (
     <div className="min-h-screen bg-[#0f0f13]">
-      {/* Decorative background blobs — kept behind all content */}
+      {/* Skip to main content */}
+      <a href="#main-content" className="sr-only">
+        Skip to content
+      </a>
+
+      {/* Decorative background blobs */}
       <div className="fixed inset-0 -z-10 pointer-events-none overflow-hidden" aria-hidden="true">
         <div className="absolute -top-40 -left-40 w-96 h-96 bg-purple-600/10 rounded-full blur-3xl" />
         <div className="absolute top-1/2 -right-40 w-80 h-80 bg-pink-600/8 rounded-full blur-3xl" />
@@ -66,16 +120,23 @@ function App() {
         {/* Controls */}
         <div className="space-y-4 mb-10">
           <SearchBar value={query} onChange={setQuery} />
-          <CategoryFilter selected={selectedCategory} onChange={handleCategoryChange} />
+          <CategoryFilter
+            selected={selectedCategory}
+            onChange={handleCategoryChange}
+            showFavorites={showFavorites}
+            onToggleFavorites={() => setShowFavorites((v) => !v)}
+            favoritesCount={favorites.length}
+          />
         </div>
 
         {/* Results count */}
-        <div className="mb-6">
+        <div className="mb-6" id="main-content">
           <p className="text-slate-500 text-sm">
-            {query || selectedCategory !== 'All' ? (
+            {isFiltering ? (
               <>
                 <span className="text-white font-medium">{filtered.length}</span>{' '}
-                platform{filtered.length !== 1 ? 's' : ''} found
+                platform{filtered.length !== 1 ? 's' : ''}{' '}
+                {showFavorites ? 'favorited' : 'found'}
                 {query && (
                   <>
                     {' '}for <span className="text-purple-400">"{query}"</span>
@@ -93,13 +154,14 @@ function App() {
         </div>
 
         {/* Empty state */}
-        {filtered.length === 0 && (
+        {isEmpty && (
           <EmptyState
             query={query}
-            category={selectedCategory}
+            category={showFavorites ? 'Favorites' : selectedCategory}
             onClear={() => {
               setQuery('');
               setSelectedCategory('All');
+              setShowFavorites(false);
             }}
           />
         )}
@@ -125,7 +187,9 @@ function App() {
                     <PlatformCard
                       key={platform.id}
                       platform={platform}
+                      isFavorited={favorites.includes(platform.id)}
                       onGenerate={setActivePlatform}
+                      onToggleFavorite={toggleFavorite}
                     />
                   ))}
                 </div>
@@ -134,14 +198,16 @@ function App() {
           </div>
         )}
 
-        {/* Filtered flat grid */}
+        {/* Filtered / favorites flat grid */}
         {!grouped && filtered.length > 0 && (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 pb-20">
             {filtered.map((platform) => (
               <PlatformCard
                 key={platform.id}
                 platform={platform}
+                isFavorited={favorites.includes(platform.id)}
                 onGenerate={setActivePlatform}
+                onToggleFavorite={toggleFavorite}
               />
             ))}
           </div>
@@ -156,6 +222,14 @@ function App() {
         />
       )}
     </div>
+  );
+}
+
+function App() {
+  return (
+    <ToastProvider>
+      <AppContent />
+    </ToastProvider>
   );
 }
 

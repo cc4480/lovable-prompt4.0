@@ -1,27 +1,16 @@
-import { ExternalLink, Wand2 } from 'lucide-react';
+import { ExternalLink, Wand2, Star } from 'lucide-react';
 import type { Platform } from '../data/types';
+import { CATEGORY_ICONS } from '../data/categories';
 import { Badge } from './Badge';
 
 interface PlatformCardProps {
   platform: Platform;
+  isFavorited: boolean;
   onGenerate: (platform: Platform) => void;
+  onToggleFavorite: (id: string) => void;
 }
 
-const CATEGORY_ICONS: Record<string, string> = {
-  'AI App Generators': '🤖',
-  'Full-Stack App Builders': '🏗️',
-  'Website Builders': '🌐',
-  'Mobile App Builders': '📱',
-  'Database & Internal Tools': '🗄️',
-  'Workflow Automation': '⚡',
-  'Enterprise Platforms': '🏢',
-  'Chatbot Builders': '💬',
-  'Landing Page Builders': '🚀',
-  'E-Commerce': '🛒',
-  'Form Builders': '📋',
-};
-
-export function PlatformCard({ platform, onGenerate }: PlatformCardProps) {
+export function PlatformCard({ platform, isFavorited, onGenerate, onToggleFavorite }: PlatformCardProps) {
   const initial = platform.name.charAt(0).toUpperCase();
 
   return (
@@ -51,16 +40,33 @@ export function PlatformCard({ platform, onGenerate }: PlatformCardProps) {
               </p>
             </div>
           </div>
-          <a
-            href={platform.url}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-slate-600 hover:text-slate-300 transition-colors flex-shrink-0 mt-0.5"
-            aria-label={`Visit ${platform.name} website`}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <ExternalLink size={14} />
-          </a>
+          <div className="flex items-center gap-1 flex-shrink-0 mt-0.5">
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onToggleFavorite(platform.id);
+              }}
+              className={`p-1 rounded-lg transition-colors ${
+                isFavorited
+                  ? 'text-yellow-400 hover:text-yellow-300'
+                  : 'text-slate-600 hover:text-slate-300'
+              }`}
+              aria-label={isFavorited ? `Remove ${platform.name} from favorites` : `Add ${platform.name} to favorites`}
+              aria-pressed={isFavorited}
+            >
+              <Star size={14} className={isFavorited ? 'fill-yellow-400' : ''} />
+            </button>
+            <a
+              href={platform.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="p-1 text-slate-600 hover:text-slate-300 transition-colors rounded-lg"
+              aria-label={`Visit ${platform.name} website`}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <ExternalLink size={14} />
+            </a>
+          </div>
         </div>
 
         {/* Description */}

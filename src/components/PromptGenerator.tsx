@@ -1,29 +1,16 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { X, Wand2, ExternalLink, RefreshCw, ChevronDown, FileText, Sparkles } from 'lucide-react';
+import { X, Wand2, ExternalLink, RefreshCw, ChevronDown, FileText, Sparkles, Share2 } from 'lucide-react';
 import type { Platform, GeneratedPrompt } from '../data/types';
+import { CATEGORY_ICONS } from '../data/categories';
 import { getTemplateForPlatform } from '../data/promptTemplates';
 import { CopyButton } from './CopyButton';
+import { useToast } from './Toast';
 
 interface PromptGeneratorProps {
   platform: Platform;
   onClose: () => void;
 }
 
-const CATEGORY_ICONS: Record<string, string> = {
-  'AI App Generators': '🤖',
-  'Full-Stack App Builders': '🏗️',
-  'Website Builders': '🌐',
-  'Mobile App Builders': '📱',
-  'Database & Internal Tools': '🗄️',
-  'Workflow Automation': '⚡',
-  'Enterprise Platforms': '🏢',
-  'Chatbot Builders': '💬',
-  'Landing Page Builders': '🚀',
-  'E-Commerce': '🛒',
-  'Form Builders': '📋',
-};
-
-// All focusable element selectors for focus trapping
 const FOCUSABLE = [
   'a[href]',
   'button:not([disabled])',
@@ -33,26 +20,48 @@ const FOCUSABLE = [
   '[tabindex]:not([tabindex="-1"])',
 ].join(', ');
 
+const HISTORY_KEY = 'nc_prompt_history';
+const MAX_HISTORY = 50;
+
+function loadStoredHistory(): GeneratedPrompt[] {
+  try {
+    const raw = JSON.parse(localStorage.getItem(HISTORY_KEY) ?? '[]') as Array<
+      Omit<GeneratedPrompt, 'createdAt'> & { createdAt: string }
+    >;
+    return raw.map((h) => ({ ...h, createdAt: new Date(h.createdAt) }));
+  } catch {
+    return [];
+  }
+}
+
+function saveStoredHistory(history: GeneratedPrompt[]) {
+  try {
+    localStorage.setItem(HISTORY_KEY, JSON.stringify(history.slice(0, MAX_HISTORY)));
+  } catch {}
+}
+
 export function PromptGenerator({ platform, onClose }: PromptGeneratorProps) {
   const template = getTemplateForPlatform(platform);
+  const { toast } = useToast();
   const [values, setValues] = useState<Record<string, string>>({});
   const [generated, setGenerated] = useState<GeneratedPrompt | null>(null);
-  const [history, setHistory] = useState<GeneratedPrompt[]>([]);
+  const [globalHistory, setGlobalHistory] = useState<GeneratedPrompt[]>(() => loadStoredHistory());
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [showHistory, setShowHistory] = useState(false);
-  // Mobile tab state: 'form' | 'output'
   const [mobileTab, setMobileTab] = useState<'form' | 'output'>('form');
+  const canShare = typeof navigator.share === 'function';
 
   const modalRef = useRef<HTMLDivElement>(null);
   const closeButtonRef = useRef<HTMLButtonElement>(null);
   const outputRef = useRef<HTMLDivElement>(null);
 
-  // Focus the close button when the modal mounts
+  // History entries for this platform only (last 5)
+  const platformHistory = globalHistory.filter((h) => h.platformId === platform.id).slice(0, 5);
+
   useEffect(() => {
     closeButtonRef.current?.focus();
   }, []);
 
-  // Lock body scroll while modal is open
   useEffect(() => {
     document.body.style.overflow = 'hidden';
     return () => {
@@ -60,7 +69,6 @@ export function PromptGenerator({ platform, onClose }: PromptGeneratorProps) {
     };
   }, []);
 
-  // Close on Escape, trap focus within modal
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
@@ -119,10 +127,12 @@ export function PromptGenerator({ platform, onClose }: PromptGeneratorProps) {
       createdAt: new Date(),
     };
     setGenerated(newPrompt);
-    setHistory((prev) => [newPrompt, ...prev.slice(0, 4)]);
-    // On mobile: switch to the output tab automatically
+
+    const updated = [newPrompt, ...globalHistory.filter((h) => h.id !== newPrompt.id)];
+    setGlobalHistory(updated);
+    saveStoredHistory(updated);
+
     setMobileTab('output');
-    // Scroll output into view after state update
     requestAnimationFrame(() => {
       outputRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
     });
@@ -133,6 +143,20 @@ export function PromptGenerator({ platform, onClose }: PromptGeneratorProps) {
     setGenerated(null);
     setErrors({});
     setMobileTab('form');
+  };
+
+  const handleShare = async () => {
+    if (!generated) return;
+    try {
+      await navigator.share({
+        title: `${platform.name} Prompt`,
+        text: generated.content,
+      });
+    } catch (err) {
+      if ((err as Error).name !== 'AbortError') {
+        toast('Failed to share prompt', 'error');
+      }
+    }
   };
 
   const handleFieldChange = (id: string, value: string) => {
@@ -203,7 +227,7 @@ export function PromptGenerator({ platform, onClose }: PromptGeneratorProps) {
           </div>
         </div>
 
-        {/* ── Mobile tab bar (hidden on lg+) ── */}
+        {/* ── Mobile tab bar ── */}
         <div className="flex lg:hidden border-b border-white/10 flex-shrink-0">
           <button
             onClick={() => setMobileTab('form')}
@@ -360,17 +384,27 @@ export function PromptGenerator({ platform, onClose }: PromptGeneratorProps) {
                 <div className="flex items-center justify-between px-6 py-4 border-b border-white/10 flex-shrink-0">
                   <h3 className="text-white font-semibold text-sm">Generated Prompt</h3>
                   <div className="flex items-center gap-2">
-                    {history.length > 1 && (
+                    {platformHistory.length > 1 && (
                       <button
                         onClick={() => setShowHistory((v) => !v)}
                         className="flex items-center gap-1 text-xs text-slate-400 hover:text-white border border-white/10 rounded-lg px-2.5 py-1.5 transition-colors"
                         aria-expanded={showHistory}
                       >
-                        History ({history.length})
+                        History ({platformHistory.length})
                         <ChevronDown
                           size={12}
                           className={`transition-transform ${showHistory ? 'rotate-180' : ''}`}
                         />
+                      </button>
+                    )}
+                    {canShare && (
+                      <button
+                        onClick={handleShare}
+                        className="flex items-center gap-1.5 text-xs text-slate-400 hover:text-white border border-white/10 rounded-lg px-2.5 py-1.5 transition-colors"
+                        aria-label="Share prompt"
+                      >
+                        <Share2 size={12} />
+                        Share
                       </button>
                     )}
                     <CopyButton text={generated.content} label="Copy Prompt" />
@@ -378,11 +412,11 @@ export function PromptGenerator({ platform, onClose }: PromptGeneratorProps) {
                 </div>
 
                 {/* History dropdown */}
-                {showHistory && history.length > 1 && (
+                {showHistory && platformHistory.length > 1 && (
                   <div className="px-6 py-3 border-b border-white/10 bg-white/[0.03] flex-shrink-0">
-                    <p className="text-xs text-slate-500 mb-2">Previous prompts</p>
+                    <p className="text-xs text-slate-500 mb-2">Previous prompts (this session)</p>
                     <div className="space-y-1">
-                      {history.slice(1).map((h) => (
+                      {platformHistory.slice(1).map((h) => (
                         <button
                           key={h.id}
                           onClick={() => {

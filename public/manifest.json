@@ -1,0 +1,17 @@
+{
+  "name": "No-Code Prompt Generator",
+  "short_name": "NC Prompts",
+  "description": "Generate production-ready prompts for 70+ no-code platforms.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0f0f13",
+  "theme_color": "#7c3aed",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

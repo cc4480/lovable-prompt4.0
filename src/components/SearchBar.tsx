@@ -13,12 +13,13 @@ export function SearchBar({ value, onChange }: SearchBarProps) {
         className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none"
       />
       <input
+        id="platform-search"
         type="search"
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder="Search platforms, categories, or tags…"
         className="w-full pl-11 pr-10 py-3 rounded-xl bg-white/5 border border-white/10 text-white placeholder-slate-500 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500/50 focus:border-purple-500/50 transition-all"
-        aria-label="Search platforms"
+        aria-label="Search platforms (press ⌘K to focus)"
       />
       {value && (
         <button

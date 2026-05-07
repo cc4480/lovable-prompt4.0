@@ -1,73 +1,64 @@
-# React + TypeScript + Vite
+# No-Code Prompt Generator
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Generate production-ready prompts for 70+ no-code platforms — Bubble, Webflow, Lovable, Zapier, FlutterFlow, Airtable, Shopify, and more. Pick a platform, fill in your project details, and get a tailored prompt ready to paste.
 
-Currently, two official plugins are available:
+## Features
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+- **70+ platforms** across 11 categories (AI App Generators, Full-Stack Builders, Website Builders, Mobile, Database, Automation, E-Commerce, and more)
+- **Platform-specific templates** — each category has a tailored prompt template that highlights that platform's strengths
+- **Favorites** — star platforms and filter to just your bookmarks (persisted in localStorage)
+- **Prompt history** — your last 50 generated prompts are saved across sessions
+- **Copy & Share** — one-click copy, plus Web Share API on supported devices
+- **Search & filter** — search by name, description, tags, or category; filter by any of 11 categories
+- **Keyboard shortcuts** — `⌘K` / `Ctrl+K` or `/` to focus search, `Esc` to clear
+- **Accessible** — skip-to-content link, focus trap in modal, ARIA labels, aria-live for output
+- **PWA-ready** — web app manifest, theme-color, JSON-LD structured data
 
-## React Compiler
+## Tech Stack
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+- **React 19** + TypeScript
+- **Vite 8** with `@vitejs/plugin-react`
+- **Tailwind CSS v4** (`@tailwindcss/vite`, no config file)
+- **Lucide React** for icons
 
-## Expanding the ESLint configuration
+## Getting Started
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
-
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```bash
+npm install
+npm run dev
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+Open [http://localhost:5173](http://localhost:5173).
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+## Project Structure
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```
+src/
+├── components/
+│   ├── Badge.tsx           # Tag badge
+│   ├── CategoryFilter.tsx  # Category + Favorites filter chips
+│   ├── CopyButton.tsx      # Clipboard copy with visual feedback
+│   ├── EmptyState.tsx      # No-results message
+│   ├── Header.tsx          # Page header
+│   ├── PlatformCard.tsx    # Platform card with favorite toggle
+│   ├── PromptGenerator.tsx # Generate-prompt modal
+│   ├── SearchBar.tsx       # Search input
+│   └── Toast.tsx           # Toast notification system
+├── data/
+│   ├── categories.ts       # Shared CATEGORY_ICONS map
+│   ├── platforms.ts        # 70 platform definitions
+│   ├── promptTemplates.ts  # 11 prompt templates (one per category)
+│   └── types.ts            # TypeScript types
+├── hooks/
+│   └── useLocalStorage.ts  # Generic localStorage state hook
+├── App.tsx
+├── index.css
+└── main.tsx
+```
+
+## Build
+
+```bash
+npm run build   # production build → dist/
+npm run preview # preview production build
 ```
