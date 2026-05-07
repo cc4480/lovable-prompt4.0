@@ -166,16 +166,6 @@ export const platforms: Platform[] = [
     color: '#0E9F6E',
     textColor: '#fff',
   },
-  {
-    id: 'framer',
-    name: 'Framer',
-    category: 'Website Builders',
-    description: 'Design-driven website builder with React components, CMS, animations and zero-config hosting.',
-    url: 'https://www.framer.com',
-    tags: ['React', 'CMS', 'Animations', 'Design'],
-    color: '#0055FF',
-    textColor: '#fff',
-  },
 
   // ─── Mobile App Builders ──────────────────────────────────────────────────
   {
@@ -669,6 +659,16 @@ export const platforms: Platform[] = [
     tags: ['Embed', 'Social selling', 'Multi-channel'],
     color: '#24A6D3',
     textColor: '#fff',
+  },
+  {
+    id: 'gumroad',
+    name: 'Gumroad',
+    category: 'E-Commerce',
+    description: 'Sell digital products, memberships, and courses directly to your audience — zero upfront cost.',
+    url: 'https://gumroad.com',
+    tags: ['Digital products', 'Memberships', 'Creators', 'No monthly fee'],
+    color: '#FF90E8',
+    textColor: '#000',
   },
 
   // ─── Form Builders ────────────────────────────────────────────────────────
