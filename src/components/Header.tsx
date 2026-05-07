@@ -1,11 +1,12 @@
 import { Zap } from 'lucide-react';
+import { platforms } from '../data/platforms';
 
 export function Header() {
   return (
     <header className="text-center py-14 px-4">
       <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-purple-500/10 border border-purple-500/20 text-purple-300 text-xs font-medium mb-6">
         <Zap size={12} />
-        70+ No-Code Platforms
+        {platforms.length}+ No-Code Platforms
       </div>
       <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-white mb-4 leading-tight tracking-tight">
         No-Code{' '}

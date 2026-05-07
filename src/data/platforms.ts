@@ -166,6 +166,16 @@ export const platforms: Platform[] = [
     color: '#0E9F6E',
     textColor: '#fff',
   },
+  {
+    id: 'framer',
+    name: 'Framer',
+    category: 'Website Builders',
+    description: 'Design-driven website builder with React components, CMS, animations and zero-config hosting.',
+    url: 'https://www.framer.com',
+    tags: ['React', 'CMS', 'Animations', 'Design'],
+    color: '#0055FF',
+    textColor: '#fff',
+  },
 
   // ─── Mobile App Builders ──────────────────────────────────────────────────
   {

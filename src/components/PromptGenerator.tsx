@@ -349,7 +349,7 @@ export function PromptGenerator({ platform, onClose }: PromptGeneratorProps) {
           {/* ── Right: Output panel ── */}
           <div
             className={`flex-1 flex flex-col overflow-hidden ${
-              mobileTab === 'output' ? 'flex' : 'hidden lg:flex'
+              mobileTab !== 'output' ? 'hidden lg:flex' : ''
             }`}
             aria-live="polite"
             aria-label="Generated prompt output"
